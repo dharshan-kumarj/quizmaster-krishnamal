@@ -23,6 +23,9 @@ export interface QuizAttempt {
   status: 'in-progress' | 'completed';
   currentQuestion?: number;
   startedAt: string;
+  tabSwitchCount: number;
+  isFlagged: boolean;
+  flagReasons: string[];
 }
 
 export interface AdminCredentials {

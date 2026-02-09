@@ -44,7 +44,10 @@ export default function QuizPage() {
       submittedAt: new Date().toISOString(),
       status: 'in-progress',
       currentQuestion: 0,
-      startedAt: new Date().toISOString()
+      startedAt: new Date().toISOString(),
+      tabSwitchCount: 0,
+      isFlagged: false,
+      flagReasons: []
     };
     
     const updatedAttempts = [...quizAttempts, newAttempt];

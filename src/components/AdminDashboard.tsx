@@ -89,7 +89,8 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
       : 0,
     highScore: liveAttempts.filter(a => a.status === 'completed').length > 0 
       ? Math.max(...liveAttempts.filter(a => a.status === 'completed').map(a => a.score)) 
-      : 0
+      : 0,
+    flagged: liveAttempts.filter(a => a.isFlagged).length
   };
 
   const handleDelete = (id: string) => {
@@ -194,14 +195,15 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl lg:rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+          <div className={`bg-gradient-to-br ${stats.flagged > 0 ? 'from-red-500 to-red-600 animate-pulse' : 'from-orange-500 to-orange-600'} rounded-xl lg:rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-100 text-xs lg:text-sm font-medium mb-1">High Score</p>
-                <p className="text-3xl lg:text-4xl font-bold">{stats.highScore}</p>
+                <p className={`${stats.flagged > 0 ? 'text-red-100' : 'text-orange-100'} text-xs lg:text-sm font-medium mb-1`}>🚩 Flagged</p>
+                <p className="text-3xl lg:text-4xl font-bold">{stats.flagged}</p>
+                <p className={`${stats.flagged > 0 ? 'text-red-200' : 'text-orange-200'} text-xs mt-1`}>Suspicious Activity</p>
               </div>
-              <svg className="w-8 h-8 lg:w-12 lg:h-12 text-orange-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              <svg className={`w-8 h-8 lg:w-12 lg:h-12 ${stats.flagged > 0 ? 'text-red-200' : 'text-orange-200'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
               </svg>
             </div>
           </div>
@@ -282,6 +284,11 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
                                 Live
                               </span>
                             )}
+                            {attempt.isFlagged && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300">
+                                🚩 {attempt.tabSwitchCount || 0}
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-gray-600">{attempt.userDetails.email}</p>
                           <p className="text-sm text-gray-500">{attempt.userDetails.collegeName}</p>
@@ -318,6 +325,19 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
                           <p className="text-sm font-semibold text-gray-900">{formatTime(attempt.timeSpentSeconds)}</p>
                         </div>
                       </div>
+                      {attempt.isFlagged && (
+                        <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                          <p className="text-xs font-bold text-red-700 mb-1">🚩 Flag Reasons:</p>
+                          <ul className="text-xs text-red-600 space-y-0.5">
+                            {(attempt.flagReasons || []).slice(0, 5).map((reason: string, i: number) => (
+                              <li key={i}>• {reason}</li>
+                            ))}
+                            {(attempt.flagReasons || []).length > 5 && (
+                              <li className="text-red-400">...and {(attempt.flagReasons || []).length - 5} more</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <p className="text-xs text-gray-500">
                           {isInProgress ? `Started: ${formatDate(attempt.startedAt)}` : `Submitted: ${formatDate(attempt.submittedAt)}`}
@@ -341,6 +361,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Score/Progress</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Time</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">🚩 Flags</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -351,7 +372,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
                       const isInProgress = attempt.status === 'in-progress';
 
                       return (
-                        <tr key={attempt.id} className={`hover:bg-gray-50 transition-colors ${isInProgress ? 'bg-yellow-50/30' : ''}`}>
+                        <tr key={attempt.id} className={`hover:bg-gray-50 transition-colors ${attempt.isFlagged ? 'bg-red-50/40 border-l-4 border-l-red-500' : isInProgress ? 'bg-yellow-50/30' : ''}`}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -397,6 +418,30 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {isInProgress ? formatDate(attempt.startedAt) : formatDate(attempt.submittedAt)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {attempt.isFlagged ? (
+                              <div className="group relative">
+                                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300 cursor-help">
+                                  🚩 {attempt.tabSwitchCount || 0} switch{(attempt.tabSwitchCount || 0) !== 1 ? 'es' : ''}
+                                </span>
+                                <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-64">
+                                  <div className="bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl">
+                                    <p className="font-bold mb-1">Flag Reasons:</p>
+                                    <ul className="space-y-0.5">
+                                      {(attempt.flagReasons || []).map((reason: string, i: number) => (
+                                        <li key={i}>• {reason}</li>
+                                      ))}
+                                    </ul>
+                                    <div className="absolute top-full left-4 w-2 h-2 bg-gray-900 transform rotate-45 -mt-1"></div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                ✓ Clean
+                              </span>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
