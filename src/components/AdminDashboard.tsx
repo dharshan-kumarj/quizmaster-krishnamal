@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QuizAttempt } from '../types';
-import { getBannedUsers, RegisteredUser } from '../data/users';
+import { getBannedUsers, RegisteredUser, registeredUsers } from '../data/users';
 import { getBannedQuiz2Users, Quiz2User, quiz2Users, getApprovedQuiz2UserIds, toggleQuiz2UserApproval, isQuiz2UserBanned } from '../data/quiz2users';
 
 interface AdminDashboardProps {
@@ -588,55 +588,82 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
                 </div>
                 <div>
                   <h2 className="text-lg lg:text-xl font-bold text-emerald-900">User Access Control</h2>
-                  <p className="text-sm text-emerald-600">Toggle the switch to approve users for Quiz 2. Only approved users can log in and take the quiz.</p>
+                  <p className="text-sm text-emerald-600">Users who completed Quiz 1 appear here. Toggle the switch to approve them for Quiz 2.</p>
                 </div>
               </div>
             </div>
 
             <div className="divide-y divide-emerald-100">
-              {quiz2Users.map((user) => {
-                const isApproved = approvedQuiz2.includes(user.id);
-                const isBanned = isQuiz2UserBanned(user.id);
-                const isConfirming = approvalConfirm === user.id;
+              {(() => {
+                // Get unique Quiz 1 completers
+                const completedUserIds = new Set<string>();
+                const quiz1Completers: { userId: string; name: string; accessCode: string; score: number; totalQuestions: number }[] = [];
+                liveAttempts
+                  .filter(a => a.status === 'completed' && a.registeredUserId)
+                  .forEach(a => {
+                    if (!completedUserIds.has(a.registeredUserId!)) {
+                      completedUserIds.add(a.registeredUserId!);
+                      const regUser = registeredUsers.find(u => u.id === a.registeredUserId);
+                      quiz1Completers.push({
+                        userId: a.registeredUserId!,
+                        name: a.userDetails.fullName,
+                        accessCode: regUser?.accessCode || '—',
+                        score: a.score,
+                        totalQuestions: a.totalQuestions
+                      });
+                    }
+                  });
 
-                return (
-                  <div key={user.id} className={`p-4 lg:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
-                    isBanned ? 'bg-red-50/50 opacity-60' : isApproved ? 'bg-emerald-50/30' : 'hover:bg-gray-50'
-                  }`}>
-                    <div className="flex items-center gap-4">
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                        isBanned ? 'bg-red-100 border-red-300' : isApproved ? 'bg-emerald-100 border-emerald-300' : 'bg-gray-100 border-gray-300'
-                      }`}>
-                        {isBanned ? (
-                          <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" />
-                          </svg>
-                        ) : isApproved ? (
-                          <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{user.name}</p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-gray-500">Code: <span className="font-mono text-gray-700">{user.accessCode}</span></p>
-                          {isBanned && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">Banned</span>}
-                          {isApproved && !isBanned && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Approved</span>}
-                          {!isApproved && !isBanned && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">Not Approved</span>}
+                if (quiz1Completers.length === 0) {
+                  return (
+                    <div className="p-8 text-center">
+                      <svg className="w-12 h-12 text-emerald-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <h3 className="text-lg font-semibold text-gray-700 mb-1">No Quiz 1 Completers Yet</h3>
+                      <p className="text-sm text-gray-500">Users who complete Quiz 1 will appear here for Quiz 2 approval.</p>
+                    </div>
+                  );
+                }
+
+                return quiz1Completers.map((completer) => {
+                  const isApproved = approvedQuiz2.includes(completer.userId);
+                  const isConfirming = approvalConfirm === completer.userId;
+                  const percentage = Math.round((completer.score / completer.totalQuestions) * 100);
+
+                  return (
+                    <div key={completer.userId} className={`p-4 lg:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                      isApproved ? 'bg-emerald-50/30' : 'hover:bg-gray-50'
+                    }`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                          isApproved ? 'bg-emerald-100 border-emerald-300' : 'bg-amber-100 border-amber-300'
+                        }`}>
+                          {isApproved ? (
+                            <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">{completer.name}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs text-gray-500">Code: <span className="font-mono text-gray-700">{completer.accessCode}</span></p>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">Quiz 1: {completer.score}/{completer.totalQuestions} ({percentage}%)</span>
+                            {isApproved
+                              ? <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">✓ Approved</span>
+                              : <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">⏳ Waiting</span>
+                            }
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {isBanned ? (
-                      <span className="text-xs text-red-500 font-medium italic">Access revoked</span>
-                    ) : (
                       <button
-                        onClick={() => handleToggleApproval(user.id)}
+                        onClick={() => handleToggleApproval(completer.userId)}
                         className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-sm hover:shadow-md ${
                           isConfirming
                             ? (isApproved ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-600 text-white animate-pulse')
@@ -666,10 +693,10 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
                           </>
                         )}
                       </button>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         )}

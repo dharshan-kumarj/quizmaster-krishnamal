@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { UserDetails, QuizAttempt } from '../types';
 import { quiz2Questions } from '../data/quiz2questions';
-import { authenticateQuiz2User, isQuiz2UserBanned, hasQuiz2UserCompleted, quiz2Users, isQuiz2UserApproved } from '../data/quiz2users';
+import { isQuiz2UserApproved } from '../data/quiz2users';
+import { authenticateUser, registeredUsers, isUserBanned, hasUserCompletedQuiz } from '../data/users';
 import RegistrationForm from '../components/RegistrationForm';
 import Quiz2Interface from '../components/Quiz2Interface';
 import ResultsPage from '../components/ResultsPage';
@@ -31,10 +32,11 @@ export default function Quiz2Page() {
   }, []);
 
   const handleAccessCodeSubmit = (accessCode: string) => {
-    const user = authenticateQuiz2User(accessCode);
+    // Authenticate using Quiz 1 credentials
+    const user = authenticateUser(accessCode);
     if (!user) {
-      const foundUser = quiz2Users.find(u => u.accessCode === accessCode.toUpperCase());
-      if (foundUser && isQuiz2UserBanned(foundUser.id)) {
+      const foundUser = registeredUsers.find(u => u.accessCode === accessCode.toUpperCase());
+      if (foundUser && isUserBanned(foundUser.id)) {
         setAuthError('Your access has been permanently revoked by the administrator.');
       } else {
         setAuthError('Invalid access code. Please check and try again.');
@@ -42,11 +44,21 @@ export default function Quiz2Page() {
       return;
     }
 
-    if (hasQuiz2UserCompleted(user.id)) {
+    // Must have completed Quiz 1 first
+    if (!hasUserCompletedQuiz(user.id)) {
+      setAuthError('You must complete Quiz 1 first before you can access Quiz 2.');
+      return;
+    }
+
+    // Check if already completed Quiz 2
+    const existingQ2: QuizAttempt[] = JSON.parse(localStorage.getItem('quiz2Attempts') || '[]');
+    const alreadyCompleted = existingQ2.some(a => a.registeredUserId === user.id && a.status === 'completed');
+    if (alreadyCompleted) {
       setAuthError('You have already completed this quiz. Each participant can only take the quiz once.');
       return;
     }
 
+    // Must be approved by admin for Quiz 2
     if (!isQuiz2UserApproved(user.id)) {
       setAuthError('Your access has not been approved yet. Please wait for the administrator to approve your participation.');
       return;
