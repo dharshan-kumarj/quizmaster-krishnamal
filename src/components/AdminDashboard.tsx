@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { QuizAttempt } from '../types';
 import { getBannedUsers, RegisteredUser } from '../data/users';
+import { getBannedQuiz2Users, Quiz2User } from '../data/quiz2users';
 
 interface AdminDashboardProps {
   attempts: QuizAttempt[];
@@ -9,15 +10,23 @@ interface AdminDashboardProps {
   onUnbanUser: (userId: string) => void;
   isQuizLocked: boolean;
   onToggleQuizLock: () => void;
+  quiz2Attempts: QuizAttempt[];
+  onDeleteQuiz2Attempt: (id: string) => void;
+  onUnbanQuiz2User: (userId: string) => void;
+  isQuiz2Locked: boolean;
+  onToggleQuiz2Lock: () => void;
 }
 
-export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, onUnbanUser, isQuizLocked, onToggleQuizLock }: AdminDashboardProps) {
+export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, onUnbanUser, isQuizLocked, onToggleQuizLock, quiz2Attempts, onDeleteQuiz2Attempt, onUnbanQuiz2User, isQuiz2Locked, onToggleQuiz2Lock }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'score' | 'time'>('date');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [liveAttempts, setLiveAttempts] = useState(attempts);
   const [bannedUsers, setBannedUsers] = useState<RegisteredUser[]>(getBannedUsers());
   const [restoreConfirm, setRestoreConfirm] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'quiz1' | 'quiz2'>('quiz1');
+  const [liveQuiz2Attempts, setLiveQuiz2Attempts] = useState(quiz2Attempts);
+  const [bannedQuiz2Users, setBannedQuiz2Users] = useState<Quiz2User[]>(getBannedQuiz2Users());
 
   // Auto-refresh from localStorage every second for live updates
   useEffect(() => {
@@ -25,12 +34,21 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
   }, [attempts]);
 
   useEffect(() => {
+    setLiveQuiz2Attempts(quiz2Attempts);
+  }, [quiz2Attempts]);
+
+  useEffect(() => {
     const refreshInterval = setInterval(() => {
       const savedAttempts = localStorage.getItem('quizAttempts');
       if (savedAttempts) {
         setLiveAttempts(JSON.parse(savedAttempts));
       }
+      const saved2Attempts = localStorage.getItem('quiz2Attempts');
+      if (saved2Attempts) {
+        setLiveQuiz2Attempts(JSON.parse(saved2Attempts));
+      }
       setBannedUsers(getBannedUsers());
+      setBannedQuiz2Users(getBannedQuiz2Users());
     }, 1000);
 
     // Listen for storage events from other tabs
@@ -39,7 +57,12 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
       if (savedAttempts) {
         setLiveAttempts(JSON.parse(savedAttempts));
       }
+      const saved2Attempts = localStorage.getItem('quiz2Attempts');
+      if (saved2Attempts) {
+        setLiveQuiz2Attempts(JSON.parse(saved2Attempts));
+      }
       setBannedUsers(getBannedUsers());
+      setBannedQuiz2Users(getBannedQuiz2Users());
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -67,13 +90,49 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
     });
   };
 
-  const filteredAttempts = liveAttempts.filter(attempt => 
+  const handleRestore = (userId: string) => {
+    if (restoreConfirm === userId) {
+      if (activeTab === 'quiz1') {
+        onUnbanUser(userId);
+        setBannedUsers(getBannedUsers());
+      } else {
+        onUnbanQuiz2User(userId);
+        setBannedQuiz2Users(getBannedQuiz2Users());
+      }
+      setRestoreConfirm(null);
+    } else {
+      setRestoreConfirm(userId);
+      setTimeout(() => setRestoreConfirm(null), 3000);
+    }
+  };
+
+  const handleDeleteActive = (id: string) => {
+    if (deleteConfirm === id) {
+      if (activeTab === 'quiz1') {
+        onDeleteAttempt(id);
+      } else {
+        onDeleteQuiz2Attempt(id);
+      }
+      setDeleteConfirm(null);
+    } else {
+      setDeleteConfirm(id);
+      setTimeout(() => setDeleteConfirm(null), 3000);
+    }
+  };
+
+  // Get active data based on tab
+  const activeAttempts = activeTab === 'quiz1' ? liveAttempts : liveQuiz2Attempts;
+  const activeBanned = activeTab === 'quiz1' ? bannedUsers : bannedQuiz2Users;
+  const activeIsLocked = activeTab === 'quiz1' ? isQuizLocked : isQuiz2Locked;
+  const activeToggleLock = activeTab === 'quiz1' ? onToggleQuizLock : onToggleQuiz2Lock;
+
+  const activeFiltered = activeAttempts.filter(attempt => 
     attempt.userDetails.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     attempt.userDetails.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     attempt.userDetails.collegeName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const sortedAttempts = [...filteredAttempts].sort((a, b) => {
+  const activeSorted = [...activeFiltered].sort((a, b) => {
     if (sortBy === 'date') {
       return new Date(b.startedAt || b.submittedAt).getTime() - new Date(a.startedAt || a.submittedAt).getTime();
     } else if (sortBy === 'score') {
@@ -83,41 +142,20 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
     }
   });
 
-  const stats = {
-    total: liveAttempts.length,
-    inProgress: liveAttempts.filter(a => a.status === 'in-progress').length,
-    completed: liveAttempts.filter(a => a.status === 'completed').length,
-    avgScore: liveAttempts.filter(a => a.status === 'completed').length > 0 
-      ? (liveAttempts.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.score, 0) / liveAttempts.filter(a => a.status === 'completed').length).toFixed(1) 
+  const activeStats = {
+    total: activeAttempts.length,
+    inProgress: activeAttempts.filter(a => a.status === 'in-progress').length,
+    completed: activeAttempts.filter(a => a.status === 'completed').length,
+    avgScore: activeAttempts.filter(a => a.status === 'completed').length > 0 
+      ? (activeAttempts.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.score, 0) / activeAttempts.filter(a => a.status === 'completed').length).toFixed(1) 
       : 0,
-    avgTime: liveAttempts.filter(a => a.status === 'completed').length > 0 
-      ? Math.round(liveAttempts.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.timeSpentSeconds, 0) / liveAttempts.filter(a => a.status === 'completed').length) 
+    avgTime: activeAttempts.filter(a => a.status === 'completed').length > 0 
+      ? Math.round(activeAttempts.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.timeSpentSeconds, 0) / activeAttempts.filter(a => a.status === 'completed').length) 
       : 0,
-    highScore: liveAttempts.filter(a => a.status === 'completed').length > 0 
-      ? Math.max(...liveAttempts.filter(a => a.status === 'completed').map(a => a.score)) 
+    highScore: activeAttempts.filter(a => a.status === 'completed').length > 0 
+      ? Math.max(...activeAttempts.filter(a => a.status === 'completed').map(a => a.score)) 
       : 0,
-    flagged: liveAttempts.filter(a => a.isFlagged).length
-  };
-
-  const handleDelete = (id: string) => {
-    if (deleteConfirm === id) {
-      onDeleteAttempt(id);
-      setDeleteConfirm(null);
-    } else {
-      setDeleteConfirm(id);
-      setTimeout(() => setDeleteConfirm(null), 3000);
-    }
-  };
-
-  const handleRestore = (userId: string) => {
-    if (restoreConfirm === userId) {
-      onUnbanUser(userId);
-      setRestoreConfirm(null);
-      setBannedUsers(getBannedUsers());
-    } else {
-      setRestoreConfirm(userId);
-      setTimeout(() => setRestoreConfirm(null), 3000);
-    }
+    flagged: activeAttempts.filter(a => a.isFlagged).length
   };
 
   return (
@@ -141,21 +179,21 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
             <div className="flex flex-wrap items-center gap-3">
               {/* Quiz Lock Toggle */}
               <button
-                onClick={onToggleQuizLock}
+                onClick={activeToggleLock}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg ${
-                  isQuizLocked
+                  activeIsLocked
                     ? 'bg-red-600 hover:bg-red-700 text-white'
                     : 'bg-green-600 hover:bg-green-700 text-white'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {isQuizLocked ? (
+                  {activeIsLocked ? (
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   ) : (
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
                   )}
                 </svg>
-                <span className="hidden sm:inline">{isQuizLocked ? 'Quiz Locked' : 'Quiz Active'}</span>
+                <span className="hidden sm:inline">{activeIsLocked ? 'Quiz Locked' : 'Quiz Active'}</span>
               </button>
               
               <button
@@ -172,14 +210,51 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">{/* Statistics Cards */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Quiz Tab Switcher */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => { setActiveTab('quiz1'); setSearchTerm(''); setDeleteConfirm(null); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
+              activeTab === 'quiz1'
+                ? 'bg-indigo-600 text-white shadow-lg'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <span className="text-lg">📊</span>
+            Quiz 1 — Business Analytics
+            {liveAttempts.length > 0 && (
+              <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'quiz1' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700'
+              }`}>{liveAttempts.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => { setActiveTab('quiz2'); setSearchTerm(''); setDeleteConfirm(null); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
+              activeTab === 'quiz2'
+                ? 'bg-emerald-600 text-white shadow-lg'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <span className="text-lg">📖</span>
+            Quiz 2 — Reading Comprehension
+            {liveQuiz2Attempts.length > 0 && (
+              <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'quiz2' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
+              }`}>{liveQuiz2Attempts.length}</span>
+            )}
+          </button>
+        </div>
+
+        {/* Statistics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl lg:rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 text-xs lg:text-sm font-medium mb-1">Total Participants</p>
-                <p className="text-3xl lg:text-4xl font-bold">{stats.total}</p>
-                <p className="text-blue-200 text-xs mt-1">In Progress: {stats.inProgress}</p>
+                <p className="text-3xl lg:text-4xl font-bold">{activeStats.total}</p>
+                <p className="text-blue-200 text-xs mt-1">In Progress: {activeStats.inProgress}</p>
               </div>
               <svg className="w-8 h-8 lg:w-12 lg:h-12 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -191,8 +266,8 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-100 text-xs lg:text-sm font-medium mb-1">Completed</p>
-                <p className="text-3xl lg:text-4xl font-bold">{stats.completed}</p>
-                <p className="text-green-200 text-xs mt-1">Avg: {stats.avgScore}</p>
+                <p className="text-3xl lg:text-4xl font-bold">{activeStats.completed}</p>
+                <p className="text-green-200 text-xs mt-1">Avg: {activeStats.avgScore}</p>
               </div>
               <svg className="w-8 h-8 lg:w-12 lg:h-12 text-green-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -204,7 +279,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-xs lg:text-sm font-medium mb-1">Avg. Time</p>
-                <p className="text-2xl lg:text-4xl font-bold">{formatTime(stats.avgTime)}</p>
+                <p className="text-2xl lg:text-4xl font-bold">{formatTime(activeStats.avgTime)}</p>
               </div>
               <svg className="w-8 h-8 lg:w-12 lg:h-12 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -212,14 +287,14 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
             </div>
           </div>
 
-          <div className={`bg-gradient-to-br ${stats.flagged > 0 ? 'from-red-500 to-red-600 animate-pulse' : 'from-orange-500 to-orange-600'} rounded-xl lg:rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}>
+          <div className={`bg-gradient-to-br ${activeStats.flagged > 0 ? 'from-red-500 to-red-600 animate-pulse' : 'from-orange-500 to-orange-600'} rounded-xl lg:rounded-2xl p-4 lg:p-6 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className={`${stats.flagged > 0 ? 'text-red-100' : 'text-orange-100'} text-xs lg:text-sm font-medium mb-1`}>🚩 Flagged</p>
-                <p className="text-3xl lg:text-4xl font-bold">{stats.flagged}</p>
-                <p className={`${stats.flagged > 0 ? 'text-red-200' : 'text-orange-200'} text-xs mt-1`}>Suspicious Activity</p>
+                <p className={`${activeStats.flagged > 0 ? 'text-red-100' : 'text-orange-100'} text-xs lg:text-sm font-medium mb-1`}>🚩 Flagged</p>
+                <p className="text-3xl lg:text-4xl font-bold">{activeStats.flagged}</p>
+                <p className={`${activeStats.flagged > 0 ? 'text-red-200' : 'text-orange-200'} text-xs mt-1`}>Suspicious Activity</p>
               </div>
-              <svg className={`w-8 h-8 lg:w-12 lg:h-12 ${stats.flagged > 0 ? 'text-red-200' : 'text-orange-200'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-8 h-8 lg:w-12 lg:h-12 ${activeStats.flagged > 0 ? 'text-red-200' : 'text-orange-200'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
               </svg>
             </div>
@@ -263,11 +338,11 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
         <div className="bg-white rounded-xl lg:rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="p-4 lg:p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
             <h2 className="text-lg lg:text-xl font-bold text-gray-900">
-              Participants ({sortedAttempts.length})
+              Participants ({activeSorted.length})
             </h2>
           </div>
 
-          {sortedAttempts.length === 0 ? (
+          {activeSorted.length === 0 ? (
             <div className="p-8 lg:p-12 text-center">
               <svg className="w-12 h-12 lg:w-16 lg:h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -281,7 +356,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
             <>
               {/* Mobile Card View */}
               <div className="block lg:hidden divide-y divide-gray-200">
-                {sortedAttempts.map((attempt, index) => {
+                {activeSorted.map((attempt, index) => {
                   const percentage = Math.round((attempt.score / attempt.totalQuestions) * 100);
                   const scoreColor = percentage >= 75 ? 'text-green-600 bg-green-100' : percentage >= 50 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100';
                   const isInProgress = attempt.status === 'in-progress';
@@ -311,7 +386,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
                           <p className="text-sm text-gray-500">{attempt.userDetails.collegeName}</p>
                         </div>
                         <button
-                          onClick={() => handleDelete(attempt.id)}
+                          onClick={() => handleDeleteActive(attempt.id)}
                           className={`p-2 rounded-lg transition-all ${
                             deleteConfirm === attempt.id
                               ? 'bg-red-600 text-white'
@@ -383,7 +458,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {sortedAttempts.map((attempt, index) => {
+                    {activeSorted.map((attempt, index) => {
                       const percentage = Math.round((attempt.score / attempt.totalQuestions) * 100);
                       const scoreColor = percentage >= 75 ? 'text-green-600 bg-green-100' : percentage >= 50 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100';
                       const isInProgress = attempt.status === 'in-progress';
@@ -462,7 +537,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
-                              onClick={() => handleDelete(attempt.id)}
+                              onClick={() => handleDeleteActive(attempt.id)}
                               className={`p-2 rounded-lg transition-all ${
                                 deleteConfirm === attempt.id
                                   ? 'bg-red-600 text-white shadow-lg'
@@ -486,7 +561,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
         </div>
 
         {/* Banned Users Section */}
-        {bannedUsers.length > 0 && (
+        {activeBanned.length > 0 && (
           <div className="bg-white rounded-xl lg:rounded-2xl shadow-lg border border-red-200 overflow-hidden mt-6">
             <div className="p-4 lg:p-6 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100">
               <div className="flex items-center gap-3">
@@ -496,14 +571,14 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-lg lg:text-xl font-bold text-red-900">Banned Users ({bannedUsers.length})</h2>
+                  <h2 className="text-lg lg:text-xl font-bold text-red-900">Banned Users ({activeBanned.length})</h2>
                   <p className="text-sm text-red-600">These users have been removed and cannot access the quiz. Click restore to allow them back.</p>
                 </div>
               </div>
             </div>
 
             <div className="divide-y divide-red-100">
-              {bannedUsers.map((user) => (
+              {activeBanned.map((user) => (
                 <div key={user.id} className="p-4 lg:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-red-50/50 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 border-2 border-red-300">
