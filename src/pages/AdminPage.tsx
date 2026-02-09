@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QuizAttempt } from '../types';
-import { banUser } from '../data/users';
+import { banUser, unbanUser } from '../data/users';
 import AdminLogin from '../components/AdminLogin';
 import AdminDashboard from '../components/AdminDashboard';
 
@@ -57,6 +57,12 @@ export default function AdminPage() {
     window.dispatchEvent(new Event('storage'));
   };
 
+  const handleUnbanUser = (userId: string) => {
+    unbanUser(userId);
+    // Trigger storage event so other tabs and components refresh
+    window.dispatchEvent(new Event('storage'));
+  };
+
   const handleToggleQuizLock = () => {
     const newLockStatus = !isQuizLocked;
     setIsQuizLocked(newLockStatus);
@@ -73,6 +79,7 @@ export default function AdminPage() {
           attempts={quizAttempts} 
           onLogout={handleAdminLogout} 
           onDeleteAttempt={handleDeleteAttempt}
+          onUnbanUser={handleUnbanUser}
           isQuizLocked={isQuizLocked}
           onToggleQuizLock={handleToggleQuizLock}
         />

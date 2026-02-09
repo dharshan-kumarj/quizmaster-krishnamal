@@ -41,6 +41,19 @@ export function banUser(userId: string): void {
   }
 }
 
+// Unban a user so they can participate again
+export function unbanUser(userId: string): void {
+  const banned: string[] = JSON.parse(localStorage.getItem('bannedUsers') || '[]');
+  const updated = banned.filter(id => id !== userId);
+  localStorage.setItem('bannedUsers', JSON.stringify(updated));
+}
+
+// Get all banned users with their details
+export function getBannedUsers(): RegisteredUser[] {
+  const banned: string[] = JSON.parse(localStorage.getItem('bannedUsers') || '[]');
+  return registeredUsers.filter(u => banned.includes(u.id));
+}
+
 // Check if user has already completed the quiz
 export function hasUserCompletedQuiz(userId: string): boolean {
   const attempts = JSON.parse(localStorage.getItem('quizAttempts') || '[]');

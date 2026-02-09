@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
 import { QuizAttempt } from '../types';
+import { getBannedUsers, RegisteredUser } from '../data/users';
 
 interface AdminDashboardProps {
   attempts: QuizAttempt[];
   onLogout: () => void;
   onDeleteAttempt: (id: string) => void;
+  onUnbanUser: (userId: string) => void;
   isQuizLocked: boolean;
   onToggleQuizLock: () => void;
 }
 
-export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, isQuizLocked, onToggleQuizLock }: AdminDashboardProps) {
+export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, onUnbanUser, isQuizLocked, onToggleQuizLock }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'score' | 'time'>('date');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [liveAttempts, setLiveAttempts] = useState(attempts);
+  const [bannedUsers, setBannedUsers] = useState<RegisteredUser[]>(getBannedUsers());
+  const [restoreConfirm, setRestoreConfirm] = useState<string | null>(null);
 
   // Auto-refresh from localStorage every second for live updates
   useEffect(() => {
@@ -26,6 +30,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
       if (savedAttempts) {
         setLiveAttempts(JSON.parse(savedAttempts));
       }
+      setBannedUsers(getBannedUsers());
     }, 1000);
 
     // Listen for storage events from other tabs
@@ -34,6 +39,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
       if (savedAttempts) {
         setLiveAttempts(JSON.parse(savedAttempts));
       }
+      setBannedUsers(getBannedUsers());
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -100,6 +106,17 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
     } else {
       setDeleteConfirm(id);
       setTimeout(() => setDeleteConfirm(null), 3000);
+    }
+  };
+
+  const handleRestore = (userId: string) => {
+    if (restoreConfirm === userId) {
+      onUnbanUser(userId);
+      setRestoreConfirm(null);
+      setBannedUsers(getBannedUsers());
+    } else {
+      setRestoreConfirm(userId);
+      setTimeout(() => setRestoreConfirm(null), 3000);
     }
   };
 
@@ -467,6 +484,57 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, is
             </>
           )}
         </div>
+
+        {/* Banned Users Section */}
+        {bannedUsers.length > 0 && (
+          <div className="bg-white rounded-xl lg:rounded-2xl shadow-lg border border-red-200 overflow-hidden mt-6">
+            <div className="p-4 lg:p-6 border-b border-red-200 bg-gradient-to-r from-red-50 to-red-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-lg lg:text-xl font-bold text-red-900">Banned Users ({bannedUsers.length})</h2>
+                  <p className="text-sm text-red-600">These users have been removed and cannot access the quiz. Click restore to allow them back.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-red-100">
+              {bannedUsers.map((user) => (
+                <div key={user.id} className="p-4 lg:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-red-50/50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 border-2 border-red-300">
+                      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500">Access Code: <span className="font-mono text-gray-700">{user.accessCode}</span></p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRestore(user.id)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-sm hover:shadow-md ${
+                      restoreConfirm === user.id
+                        ? 'bg-green-600 text-white animate-pulse'
+                        : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
+                    }`}
+                    title={restoreConfirm === user.id ? 'Click again to confirm restore' : 'Restore user access'}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {restoreConfirm === user.id ? 'Confirm Restore' : 'Restore Access'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
