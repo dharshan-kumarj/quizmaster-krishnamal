@@ -20,6 +20,9 @@ export interface QuizAttempt {
   totalQuestions: number;
   timeSpentSeconds: number;
   submittedAt: string;
+  status: 'in-progress' | 'completed';
+  currentQuestion?: number;
+  startedAt: string;
 }
 
 export interface AdminCredentials {

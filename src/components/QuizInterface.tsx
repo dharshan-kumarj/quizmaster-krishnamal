@@ -5,15 +5,18 @@ import { quizQuestions, QUIZ_TIME_LIMIT_SECONDS } from '../data/questions';
 interface QuizInterfaceProps {
   userDetails: UserDetails;
   onComplete: (answers: Record<number, string>, timeSpent: number) => void;
+  onKickedOut: () => void;
+  attemptId: string;
 }
 
-export default function QuizInterface({ userDetails, onComplete }: QuizInterfaceProps) {
+export default function QuizInterface({ userDetails, onComplete, onKickedOut, attemptId }: QuizInterfaceProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [timeRemaining, setTimeRemaining] = useState(QUIZ_TIME_LIMIT_SECONDS);
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Timer effect
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeRemaining(prev => {
@@ -28,6 +31,46 @@ export default function QuizInterface({ userDetails, onComplete }: QuizInterface
 
     return () => clearInterval(timer);
   }, []);
+
+  // Check for quiz lock and user deletion every second
+  useEffect(() => {
+    const checkStatus = setInterval(() => {
+      const lockStatus = localStorage.getItem('quizLocked');
+      if (lockStatus === 'true') {
+        onKickedOut();
+        return;
+      }
+
+      const attempts = JSON.parse(localStorage.getItem('quizAttempts') || '[]');
+      const myAttempt = attempts.find((a: any) => a.id === attemptId);
+      if (!myAttempt) {
+        // User was deleted by admin
+        onKickedOut();
+        return;
+      }
+    }, 1000);
+
+    return () => clearInterval(checkStatus);
+  }, [attemptId, onKickedOut]);
+
+  // Update localStorage with current progress
+  useEffect(() => {
+    const attempts = JSON.parse(localStorage.getItem('quizAttempts') || '[]');
+    const attemptIndex = attempts.findIndex((a: any) => a.id === attemptId);
+    
+    if (attemptIndex !== -1) {
+      attempts[attemptIndex] = {
+        ...attempts[attemptIndex],
+        answers,
+        currentQuestion: currentQuestionIndex,
+        timeSpentSeconds: QUIZ_TIME_LIMIT_SECONDS - timeRemaining
+      };
+      localStorage.setItem('quizAttempts', JSON.stringify(attempts));
+      
+      // Trigger storage event for other tabs
+      window.dispatchEvent(new Event('storage'));
+    }
+  }, [answers, currentQuestionIndex, timeRemaining, attemptId]);
 
   useEffect(() => {
     const savedAnswer = answers[quizQuestions[currentQuestionIndex].id];

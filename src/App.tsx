@@ -7,8 +7,10 @@ import QuizInterface from './components/QuizInterface';
 import ResultsPage from './components/ResultsPage';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
+import QuizLockedPage from './components/QuizLockedPage';
+import KickedOutPage from './components/KickedOutPage';
 
-type AppView = 'home' | 'registration' | 'quiz' | 'results' | 'admin-login' | 'admin-dashboard';
+type AppView = 'home' | 'registration' | 'quiz' | 'results' | 'admin-login' | 'admin-dashboard' | 'kicked-out';
 
 // Hardcoded admin credentials
 const ADMIN_CREDENTIALS = {
@@ -22,22 +24,49 @@ function App() {
   const [currentAnswers, setCurrentAnswers] = useState<Record<number, string>>({});
   const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isQuizLocked, setIsQuizLocked] = useState(false);
+  const [currentAttemptId, setCurrentAttemptId] = useState<string>('');
 
-  // Load quiz attempts from localStorage on mount
+  // Load quiz attempts and lock status from localStorage on mount
   useEffect(() => {
     const savedAttempts = localStorage.getItem('quizAttempts');
     if (savedAttempts) {
       setQuizAttempts(JSON.parse(savedAttempts));
     }
+    const lockStatus = localStorage.getItem('quizLocked');
+    if (lockStatus === 'true') {
+      setIsQuizLocked(true);
+    }
   }, []);
 
   const handleRegistrationSubmit = (details: UserDetails) => {
     setUserDetails(details);
+    
+    // Create attempt immediately when user registers
+    const attemptId = Date.now().toString();
+    const newAttempt: QuizAttempt = {
+      id: attemptId,
+      userDetails: details,
+      answers: {},
+      score: 0,
+      totalQuestions: quizQuestions.length,
+      timeSpentSeconds: 0,
+      submittedAt: '',
+      startedAt: new Date().toISOString(),
+      status: 'in-progress',
+      currentQuestion: 0
+    };
+
+    const updatedAttempts = [...quizAttempts, newAttempt];
+    setQuizAttempts(updatedAttempts);
+    localStorage.setItem('quizAttempts', JSON.stringify(updatedAttempts));
+    setCurrentAttemptId(attemptId);
+    
     setCurrentView('quiz');
   };
 
   const handleQuizComplete = (answers: Record<number, string>, timeSpent: number) => {
-    if (!userDetails) return;
+    if (!userDetails || !currentAttemptId) return;
 
     // Calculate score
     let score = 0;
@@ -48,24 +77,31 @@ function App() {
       }
     });
 
-    // Create quiz attempt
-    const attempt: QuizAttempt = {
-      id: Date.now().toString(),
-      userDetails,
-      answers,
-      score,
-      totalQuestions: quizQuestions.length,
-      timeSpentSeconds: timeSpent,
-      submittedAt: new Date().toISOString()
-    };
+    // Update existing attempt to completed
+    const attempts = JSON.parse(localStorage.getItem('quizAttempts') || '[]');
+    const attemptIndex = attempts.findIndex((a: QuizAttempt) => a.id === currentAttemptId);
+    
+    if (attemptIndex !== -1) {
+      attempts[attemptIndex] = {
+        ...attempts[attemptIndex],
+        answers,
+        score,
+        timeSpentSeconds: timeSpent,
+        submittedAt: new Date().toISOString(),
+        status: 'completed'
+      };
 
-    // Save to localStorage
-    const updatedAttempts = [...quizAttempts, attempt];
-    setQuizAttempts(updatedAttempts);
-    localStorage.setItem('quizAttempts', JSON.stringify(updatedAttempts));
+      setQuizAttempts(attempts);
+      localStorage.setItem('quizAttempts', JSON.stringify(attempts));
+    }
 
     setCurrentAnswers(answers);
     setCurrentView('results');
+  };
+
+  const handleKickedOut = () => {
+    // User was kicked out (quiz locked or deleted)
+    setCurrentView('kicked-out');
   };
 
   const handleAdminLogin = (email: string, password: string): boolean => {
@@ -85,7 +121,33 @@ function App() {
   const handleReturnHome = () => {
     setUserDetails(null);
     setCurrentAnswers({});
+    setCurrentAttemptId('');
     setCurrentView('home');
+  };
+
+  const handleKickedOutReturn = () => {
+    setUserDetails(null);
+    setCurrentAnswers({});
+    setCurrentAttemptId('');
+    setCurrentView('home');
+  };
+
+  const handleDeleteAttempt = (id: string) => {
+    const updatedAttempts = quizAttempts.filter(attempt => attempt.id !== id);
+    setQuizAttempts(updatedAttempts);
+    localStorage.setItem('quizAttempts', JSON.stringify(updatedAttempts));
+    
+    // Trigger storage event so other tabs know about deletion
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleToggleQuizLock = () => {
+    const newLockStatus = !isQuizLocked;
+    setIsQuizLocked(newLockStatus);
+    localStorage.setItem('quizLocked', newLockStatus.toString());
+    
+    // Trigger storage event so other tabs know about lock change
+    window.dispatchEvent(new Event('storage'));
   };
 
   const calculateScore = () => {
@@ -103,11 +165,19 @@ function App() {
   const renderView = () => {
     switch (currentView) {
       case 'registration':
+        if (isQuizLocked) {
+          return <QuizLockedPage onReturnHome={handleReturnHome} />;
+        }
         return <RegistrationForm onSubmit={handleRegistrationSubmit} />;
       
       case 'quiz':
         return userDetails ? (
-          <QuizInterface userDetails={userDetails} onComplete={handleQuizComplete} />
+          <QuizInterface 
+            userDetails={userDetails} 
+            onComplete={handleQuizComplete} 
+            onKickedOut={handleKickedOut}
+            attemptId={currentAttemptId}
+          />
         ) : null;
       
       case 'results':
@@ -128,20 +198,29 @@ function App() {
       
       case 'admin-dashboard':
         return isAdminAuthenticated ? (
-          <AdminDashboard attempts={quizAttempts} onLogout={handleAdminLogout} />
+          <AdminDashboard 
+            attempts={quizAttempts} 
+            onLogout={handleAdminLogout} 
+            onDeleteAttempt={handleDeleteAttempt}
+            isQuizLocked={isQuizLocked}
+            onToggleQuizLock={handleToggleQuizLock}
+          />
         ) : (
           <AdminLogin onLogin={handleAdminLogin} />
         );
       
+      case 'kicked-out':
+        return <KickedOutPage onReturnHome={handleKickedOutReturn} />;
+      
       default:
-        return <HomePage onStartQuiz={() => setCurrentView('registration')} onAdminAccess={() => setCurrentView('admin-login')} />;
+        return <HomePage onStartQuiz={() => setCurrentView('registration')} onAdminAccess={() => setCurrentView('admin-login')} isQuizLocked={isQuizLocked} />;
     }
   };
 
   return <>{renderView()}</>;
 }
 
-function HomePage({ onStartQuiz, onAdminAccess }: { onStartQuiz: () => void; onAdminAccess: () => void }) {
+function HomePage({ onStartQuiz, onAdminAccess, isQuizLocked }: { onStartQuiz: () => void; onAdminAccess: () => void; isQuizLocked: boolean }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background Elements */}
@@ -222,13 +301,29 @@ function HomePage({ onStartQuiz, onAdminAccess }: { onStartQuiz: () => void; onA
 
           <button
             onClick={onStartQuiz}
-            className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-bold py-5 px-8 rounded-xl text-xl hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
+            disabled={isQuizLocked}
+            className={`w-full font-bold py-5 px-8 rounded-xl text-xl transition-all shadow-xl transform ${
+              isQuizLocked
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 hover:shadow-2xl hover:-translate-y-1'
+            }`}
           >
-            Start Quiz Now
+            {isQuizLocked ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Quiz Currently Locked
+              </span>
+            ) : (
+              'Start Quiz Now'
+            )}
           </button>
 
           <p className="text-center text-gray-500 text-sm mt-6">
-            Complete the quiz to receive instant results and detailed analytics
+            {isQuizLocked 
+              ? 'The quiz is temporarily unavailable. Please contact the administrator.' 
+              : 'Complete the quiz to receive instant results and detailed analytics'}
           </p>
         </div>
       </div>
