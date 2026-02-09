@@ -14,6 +14,7 @@ export interface UserDetails {
 
 export interface QuizAttempt {
   id: string;
+  registeredUserId: string;
   userDetails: UserDetails;
   answers: Record<number, string>;
   score: number;

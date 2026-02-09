@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { UserDetails, QuizAttempt } from '../types';
 import { quizQuestions } from '../data/questions';
+import { authenticateUser, isUserBanned, hasUserCompletedQuiz, registeredUsers } from '../data/users';
 import RegistrationForm from '../components/RegistrationForm';
 import QuizInterface from '../components/QuizInterface';
 import ResultsPage from '../components/ResultsPage';
@@ -16,6 +17,7 @@ export default function QuizPage() {
   const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
   const [isQuizLocked, setIsQuizLocked] = useState(false);
   const [currentAttemptId, setCurrentAttemptId] = useState<string>('');
+  const [authError, setAuthError] = useState('');
 
   // Load quiz attempts and lock status from localStorage on mount
   useEffect(() => {
@@ -29,19 +31,66 @@ export default function QuizPage() {
     }
   }, []);
 
-  const handleRegistrationSubmit = (details: UserDetails) => {
+  const handleAccessCodeSubmit = (accessCode: string) => {
+    // 1. Authenticate user
+    const user = authenticateUser(accessCode);
+    if (!user) {
+      // Check if this code belongs to a banned user
+      const foundUser = registeredUsers.find(u => u.accessCode === accessCode.toUpperCase());
+      if (foundUser && isUserBanned(foundUser.id)) {
+        setAuthError('Your access has been permanently revoked by the administrator.');
+      } else {
+        setAuthError('Invalid access code. Please check and try again.');
+      }
+      return;
+    }
+
+    // 2. Check if already completed quiz
+    if (hasUserCompletedQuiz(user.id)) {
+      setAuthError('You have already completed this quiz. Each participant can only take the quiz once.');
+      return;
+    }
+
+    // 3. Check if quiz is locked
+    if (isQuizLocked) {
+      setAuthError('The quiz is currently locked. Please wait for the administrator to unlock it.');
+      return;
+    }
+
+    // 4. Check if already in progress
+    const existingAttempts: QuizAttempt[] = JSON.parse(localStorage.getItem('quizAttempts') || '[]');
+    const inProgressAttempt = existingAttempts.find(a => a.registeredUserId === user.id && a.status === 'in-progress');
+    if (inProgressAttempt) {
+      // Resume existing attempt
+      const details: UserDetails = inProgressAttempt.userDetails;
+      setUserDetails(details);
+      setCurrentAttemptId(inProgressAttempt.id);
+      setCurrentAnswers(inProgressAttempt.answers || {});
+      setAuthError('');
+      setCurrentView('quiz');
+      return;
+    }
+
+    // 5. Create new attempt
+    setAuthError('');
+    const details: UserDetails = {
+      fullName: user.name,
+      collegeName: '',
+      email: '',
+      phoneNumber: ''
+    };
     setUserDetails(details);
     
-    // Create attempt immediately when user registers
     const attemptId = Date.now().toString();
     const newAttempt: QuizAttempt = {
       id: attemptId,
+      registeredUserId: user.id,
       userDetails: details,
       answers: {},
       score: 0,
       totalQuestions: quizQuestions.length,
       timeSpentSeconds: 0,
-      submittedAt: new Date().toISOString(),
+      submittedAt: '',
       status: 'in-progress',
       currentQuestion: 0,
       startedAt: new Date().toISOString(),
@@ -50,11 +99,15 @@ export default function QuizPage() {
       flagReasons: []
     };
     
-    const updatedAttempts = [...quizAttempts, newAttempt];
+    const freshAttempts: QuizAttempt[] = JSON.parse(localStorage.getItem('quizAttempts') || '[]');
+    const updatedAttempts = [...freshAttempts, newAttempt];
     setQuizAttempts(updatedAttempts);
     localStorage.setItem('quizAttempts', JSON.stringify(updatedAttempts));
     setCurrentAttemptId(attemptId);
     setCurrentView('quiz');
+    
+    // Notify admin dashboard
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleQuizComplete = (answers: Record<number, string>, timeSpent: number) => {
@@ -90,6 +143,7 @@ export default function QuizPage() {
     setUserDetails(null);
     setCurrentAnswers({});
     setCurrentAttemptId('');
+    setAuthError('');
     setCurrentView('home');
   };
 
@@ -97,6 +151,7 @@ export default function QuizPage() {
     setUserDetails(null);
     setCurrentAnswers({});
     setCurrentAttemptId('');
+    setAuthError('');
     setCurrentView('home');
   };
 
@@ -117,7 +172,7 @@ export default function QuizPage() {
         if (isQuizLocked) {
           return <QuizLockedPage onReturnHome={handleReturnHome} />;
         }
-        return <RegistrationForm onSubmit={handleRegistrationSubmit} />;
+        return <RegistrationForm onSubmit={handleAccessCodeSubmit} errorMessage={authError} />;
       
       case 'quiz':
         return userDetails ? (

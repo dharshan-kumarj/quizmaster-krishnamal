@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QuizAttempt } from '../types';
+import { banUser } from '../data/users';
 import AdminLogin from '../components/AdminLogin';
 import AdminDashboard from '../components/AdminDashboard';
 
@@ -41,6 +42,13 @@ export default function AdminPage() {
   const handleDeleteAttempt = (id: string) => {
     // Always read fresh from localStorage to avoid stale state
     const currentAttempts: QuizAttempt[] = JSON.parse(localStorage.getItem('quizAttempts') || '[]');
+    
+    // Find the attempt to get the registered user ID and ban them
+    const attemptToDelete = currentAttempts.find(attempt => attempt.id === id);
+    if (attemptToDelete?.registeredUserId) {
+      banUser(attemptToDelete.registeredUserId);
+    }
+    
     const updatedAttempts = currentAttempts.filter(attempt => attempt.id !== id);
     setQuizAttempts(updatedAttempts);
     localStorage.setItem('quizAttempts', JSON.stringify(updatedAttempts));
