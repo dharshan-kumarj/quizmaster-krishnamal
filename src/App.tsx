@@ -12,6 +12,7 @@ function App() {
         <Route path="/quiz2" element={<Quiz2Page />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/" element={<Navigate to="/quiz1" replace />} />
+        <Route path="*" element={<Navigate to="/quiz1" replace />} />
       </Routes>
     </BrowserRouter>
   );
