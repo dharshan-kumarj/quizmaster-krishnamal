@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { QuizAttempt } from '../types';
 import { getBannedUsers, RegisteredUser } from '../data/users';
-import { getBannedQuiz2Users, Quiz2User } from '../data/quiz2users';
+import { getBannedQuiz2Users, Quiz2User, quiz2Users, getApprovedQuiz2UserIds, toggleQuiz2UserApproval, isQuiz2UserBanned } from '../data/quiz2users';
 
 interface AdminDashboardProps {
   attempts: QuizAttempt[];
@@ -27,6 +27,8 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
   const [activeTab, setActiveTab] = useState<'quiz1' | 'quiz2'>('quiz1');
   const [liveQuiz2Attempts, setLiveQuiz2Attempts] = useState(quiz2Attempts);
   const [bannedQuiz2Users, setBannedQuiz2Users] = useState<Quiz2User[]>(getBannedQuiz2Users());
+  const [approvedQuiz2, setApprovedQuiz2] = useState<string[]>(getApprovedQuiz2UserIds());
+  const [approvalConfirm, setApprovalConfirm] = useState<string | null>(null);
 
   // Auto-refresh from localStorage every second for live updates
   useEffect(() => {
@@ -49,6 +51,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
       }
       setBannedUsers(getBannedUsers());
       setBannedQuiz2Users(getBannedQuiz2Users());
+      setApprovedQuiz2(getApprovedQuiz2UserIds());
     }, 1000);
 
     // Listen for storage events from other tabs
@@ -63,6 +66,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
       }
       setBannedUsers(getBannedUsers());
       setBannedQuiz2Users(getBannedQuiz2Users());
+      setApprovedQuiz2(getApprovedQuiz2UserIds());
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -117,6 +121,18 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
     } else {
       setDeleteConfirm(id);
       setTimeout(() => setDeleteConfirm(null), 3000);
+    }
+  };
+
+  const handleToggleApproval = (userId: string) => {
+    if (approvalConfirm === userId) {
+      toggleQuiz2UserApproval(userId);
+      setApprovedQuiz2(getApprovedQuiz2UserIds());
+      setApprovalConfirm(null);
+      window.dispatchEvent(new Event('storage'));
+    } else {
+      setApprovalConfirm(userId);
+      setTimeout(() => setApprovalConfirm(null), 3000);
     }
   };
 
@@ -559,6 +575,104 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
             </>
           )}
         </div>
+
+        {/* Quiz 2 User Approval Panel – only visible on Quiz 2 tab */}
+        {activeTab === 'quiz2' && (
+          <div className="bg-white rounded-xl lg:rounded-2xl shadow-lg border border-emerald-200 overflow-hidden mt-6">
+            <div className="p-4 lg:p-6 border-b border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-lg lg:text-xl font-bold text-emerald-900">User Access Control</h2>
+                  <p className="text-sm text-emerald-600">Toggle the switch to approve users for Quiz 2. Only approved users can log in and take the quiz.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-emerald-100">
+              {quiz2Users.map((user) => {
+                const isApproved = approvedQuiz2.includes(user.id);
+                const isBanned = isQuiz2UserBanned(user.id);
+                const isConfirming = approvalConfirm === user.id;
+
+                return (
+                  <div key={user.id} className={`p-4 lg:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                    isBanned ? 'bg-red-50/50 opacity-60' : isApproved ? 'bg-emerald-50/30' : 'hover:bg-gray-50'
+                  }`}>
+                    <div className="flex items-center gap-4">
+                      <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                        isBanned ? 'bg-red-100 border-red-300' : isApproved ? 'bg-emerald-100 border-emerald-300' : 'bg-gray-100 border-gray-300'
+                      }`}>
+                        {isBanned ? (
+                          <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" />
+                          </svg>
+                        ) : isApproved ? (
+                          <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{user.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500">Code: <span className="font-mono text-gray-700">{user.accessCode}</span></p>
+                          {isBanned && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">Banned</span>}
+                          {isApproved && !isBanned && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Approved</span>}
+                          {!isApproved && !isBanned && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">Not Approved</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {isBanned ? (
+                      <span className="text-xs text-red-500 font-medium italic">Access revoked</span>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleApproval(user.id)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-sm hover:shadow-md ${
+                          isConfirming
+                            ? (isApproved ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-600 text-white animate-pulse')
+                            : isApproved
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700 border border-emerald-300 hover:border-red-300'
+                              : 'bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-700 border border-gray-300 hover:border-emerald-300'
+                        }`}
+                        title={isConfirming ? 'Click again to confirm' : isApproved ? 'Click to revoke access' : 'Click to approve access'}
+                      >
+                        {isConfirming ? (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            {isApproved ? 'Confirm Revoke' : 'Confirm Approve'}
+                          </>
+                        ) : (
+                          <>
+                            <div className={`relative w-11 h-6 rounded-full transition-colors ${
+                              isApproved ? 'bg-emerald-500' : 'bg-gray-300'
+                            }`}>
+                              <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                                isApproved ? 'translate-x-5' : 'translate-x-0.5'
+                              }`}></div>
+                            </div>
+                            {isApproved ? 'Approved' : 'Approve'}
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Banned Users Section */}
         {activeBanned.length > 0 && (

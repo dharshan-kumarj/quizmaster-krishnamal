@@ -57,3 +57,39 @@ export function authenticateQuiz2User(accessCode: string): Quiz2User | null {
   if (isQuiz2UserBanned(user.id)) return null;
   return user;
 }
+
+// ── Quiz 2 Approval System ──
+// Only admin-approved users can access Quiz 2
+
+export function getApprovedQuiz2UserIds(): string[] {
+  return JSON.parse(localStorage.getItem('quiz2ApprovedUsers') || '[]');
+}
+
+export function isQuiz2UserApproved(userId: string): boolean {
+  const approved = getApprovedQuiz2UserIds();
+  return approved.includes(userId);
+}
+
+export function approveQuiz2User(userId: string): void {
+  const approved = getApprovedQuiz2UserIds();
+  if (!approved.includes(userId)) {
+    approved.push(userId);
+    localStorage.setItem('quiz2ApprovedUsers', JSON.stringify(approved));
+  }
+}
+
+export function revokeQuiz2UserApproval(userId: string): void {
+  const approved = getApprovedQuiz2UserIds();
+  const updated = approved.filter(id => id !== userId);
+  localStorage.setItem('quiz2ApprovedUsers', JSON.stringify(updated));
+}
+
+export function toggleQuiz2UserApproval(userId: string): boolean {
+  if (isQuiz2UserApproved(userId)) {
+    revokeQuiz2UserApproval(userId);
+    return false;
+  } else {
+    approveQuiz2User(userId);
+    return true;
+  }
+}

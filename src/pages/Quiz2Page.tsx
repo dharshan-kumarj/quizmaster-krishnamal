@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { UserDetails, QuizAttempt } from '../types';
 import { quiz2Questions } from '../data/quiz2questions';
-import { authenticateQuiz2User, isQuiz2UserBanned, hasQuiz2UserCompleted, quiz2Users } from '../data/quiz2users';
+import { authenticateQuiz2User, isQuiz2UserBanned, hasQuiz2UserCompleted, quiz2Users, isQuiz2UserApproved } from '../data/quiz2users';
 import RegistrationForm from '../components/RegistrationForm';
 import Quiz2Interface from '../components/Quiz2Interface';
 import ResultsPage from '../components/ResultsPage';
@@ -44,6 +44,11 @@ export default function Quiz2Page() {
 
     if (hasQuiz2UserCompleted(user.id)) {
       setAuthError('You have already completed this quiz. Each participant can only take the quiz once.');
+      return;
+    }
+
+    if (!isQuiz2UserApproved(user.id)) {
+      setAuthError('Your access has not been approved yet. Please wait for the administrator to approve your participation.');
       return;
     }
 
