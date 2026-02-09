@@ -28,6 +28,7 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
   const [liveQuiz2Attempts, setLiveQuiz2Attempts] = useState(quiz2Attempts);
   const [bannedQuiz2Users, setBannedQuiz2Users] = useState<Quiz2User[]>(getBannedQuiz2Users());
   const [approvedQuiz2, setApprovedQuiz2] = useState<string[]>(getApprovedQuiz2UserIds());
+  const [showAccessCodes, setShowAccessCodes] = useState(false);
   const [approvalConfirm, setApprovalConfirm] = useState<string | null>(null);
 
   // Auto-refresh from localStorage every second for live updates
@@ -262,6 +263,74 @@ export default function AdminDashboard({ attempts, onLogout, onDeleteAttempt, on
             )}
           </button>
         </div>
+
+        {/* Access Codes Panel */}
+        {activeTab === 'quiz1' && (
+          <div className="bg-white rounded-xl lg:rounded-2xl shadow-lg border border-indigo-200 overflow-hidden mb-6">
+            <button
+              onClick={() => setShowAccessCodes(!showAccessCodes)}
+              className="w-full p-4 lg:px-6 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <h2 className="text-lg font-bold text-indigo-900">Access Codes</h2>
+                  <p className="text-xs text-indigo-600">All 16 registered participant codes</p>
+                </div>
+              </div>
+              <svg className={`w-5 h-5 text-indigo-500 transition-transform ${showAccessCodes ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showAccessCodes && (
+              <div className="p-4 lg:px-6 lg:pb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {registeredUsers.map((user, index) => {
+                    const isBanned = bannedUsers.some(b => b.id === user.id);
+                    const attempt = liveAttempts.find(a => a.registeredUserId === user.id);
+                    const isCompleted = attempt?.status === 'completed';
+                    const isInProgress = attempt?.status === 'in-progress';
+
+                    let statusColor = 'border-gray-200 bg-gray-50';
+                    let statusBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">Waiting</span>;
+
+                    if (isBanned) {
+                      statusColor = 'border-red-200 bg-red-50';
+                      statusBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Banned</span>;
+                    } else if (isCompleted) {
+                      statusColor = 'border-green-200 bg-green-50';
+                      statusBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">✓ Completed</span>;
+                    } else if (isInProgress) {
+                      statusColor = 'border-yellow-200 bg-yellow-50';
+                      statusBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 font-medium animate-pulse">● Live</span>;
+                    }
+
+                    return (
+                      <div key={user.id} className={`rounded-xl border-2 p-3 transition-all hover:shadow-md ${statusColor}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">{index + 1}</span>
+                          {statusBadge}
+                        </div>
+                        <p className="font-semibold text-gray-900 text-sm truncate mb-1" title={user.name}>{user.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                          <span className="font-mono text-sm font-bold text-indigo-700 tracking-wider">{user.accessCode}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
