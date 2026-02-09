@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { QuizAttempt } from '../types';
 import { getBannedUsers, RegisteredUser, registeredUsers } from '../data/users';
-import { getBannedQuiz2Users, Quiz2User, quiz2Users, getApprovedQuiz2UserIds, toggleQuiz2UserApproval, isQuiz2UserBanned } from '../data/quiz2users';
+import { getBannedQuiz2Users, Quiz2User, getApprovedQuiz2UserIds, toggleQuiz2UserApproval } from '../data/quiz2users';
 
 interface AdminDashboardProps {
   attempts: QuizAttempt[];
