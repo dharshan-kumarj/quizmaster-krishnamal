@@ -24,6 +24,11 @@ export const registeredUsers: RegisteredUser[] = [
   { id: 'user-14', name: 'SANJAY S',            accessCode: '5F7A4C20' },
   { id: 'user-15', name: 'JUHARIYA',            accessCode: '0D6B9E3F' },
   { id: 'user-16', name: 'HARSHINI S',          accessCode: 'E8C25A71' },
+  { id: 'user-17', name: 'DUMMY 1',             accessCode: '1A2B3C4D' },
+  { id: 'user-18', name: 'DUMMY 2',             accessCode: '5E6F7A8B' },
+  { id: 'user-19', name: 'DUMMY 3',             accessCode: '9C0D1E2F' },
+  { id: 'user-20', name: 'DUMMY 4',             accessCode: '3A4B5C6D' },
+  { id: 'user-21', name: 'DUMMY 5',             accessCode: '7E8F9A0B' },
 ];
 
 // Check if a user is banned (deleted by admin)
