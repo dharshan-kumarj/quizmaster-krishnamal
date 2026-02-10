@@ -251,7 +251,7 @@ export default function QuizInterface({ userDetails, onComplete, onKickedOut, at
   const isLowTime = timeRemaining < 300; // Less than 5 minutes
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4 select-none" onCopy={(e) => e.preventDefault()} onCut={(e) => e.preventDefault()} onPaste={(e) => e.preventDefault()}>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-2 sm:p-4 pb-28 sm:pb-4 select-none" onCopy={(e) => e.preventDefault()} onCut={(e) => e.preventDefault()} onPaste={(e) => e.preventDefault()}>
       
       {/* Anti-Cheat Warning Banner */}
       {showWarning && (
@@ -285,14 +285,14 @@ export default function QuizInterface({ userDetails, onComplete, onKickedOut, at
 
       <div className="max-w-4xl mx-auto">
         {/* Header with Timer and Progress */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-6 sticky top-4 z-10">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-3 sm:p-6 mb-4 sm:mb-6 sticky top-2 sm:top-4 z-10">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">{userDetails.fullName}</h2>
               <p className="text-sm text-gray-500">{userDetails.email}</p>
             </div>
             <div className={`text-right ${isLowTime ? 'animate-pulse' : ''}`}>
-              <div className={`text-3xl font-bold ${isLowTime ? 'text-red-600' : 'text-indigo-600'}`}>
+              <div className={`text-xl sm:text-3xl font-bold ${isLowTime ? 'text-red-600' : 'text-indigo-600'}`}>
                 {formatTime(timeRemaining)}
               </div>
               <p className="text-xs text-gray-500 mt-1">Time Remaining</p>
@@ -314,16 +314,16 @@ export default function QuizInterface({ userDetails, onComplete, onKickedOut, at
 
         {/* Question Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 sm:p-6">
             <span className="inline-block px-4 py-1 bg-white/20 rounded-full text-white text-sm font-medium mb-3">
               Question {currentQuestionIndex + 1}
             </span>
-            <h3 className="text-2xl font-semibold text-white leading-relaxed">
+            <h3 className="text-lg sm:text-2xl font-semibold text-white leading-relaxed">
               {currentQuestion.question}
             </h3>
           </div>
 
-          <div className="p-8">
+          <div className="p-4 sm:p-8">
             <div className="space-y-4">
               {currentQuestion.options.map((option, index) => {
                 const optionLabel = String.fromCharCode(65 + index); // A, B, C, D
@@ -333,7 +333,7 @@ export default function QuizInterface({ userDetails, onComplete, onKickedOut, at
                   <button
                     key={index}
                     onClick={() => handleAnswerSelect(option)}
-                    className={`w-full text-left p-5 rounded-xl border-2 transition-all transform hover:scale-[1.02] ${
+                    className={`w-full text-left p-3 sm:p-5 rounded-xl border-2 transition-all transform hover:scale-[1.02] ${
                       isSelected
                         ? 'border-indigo-500 bg-indigo-50 shadow-md'
                         : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
@@ -362,8 +362,8 @@ export default function QuizInterface({ userDetails, onComplete, onKickedOut, at
             </div>
           </div>
 
-          {/* Navigation */}
-          <div className="bg-gray-50 p-6 flex justify-between items-center border-t">
+          {/* Navigation - Hidden on mobile, shown inside card on desktop */}
+          <div className="hidden sm:flex bg-gray-50 p-6 justify-between items-center border-t">
             <button
               onClick={handlePrevious}
               disabled={currentQuestionIndex === 0}
@@ -404,6 +404,34 @@ export default function QuizInterface({ userDetails, onComplete, onKickedOut, at
               </button>
             )}
           </div>
+        </div>
+
+        {/* Mobile Fixed Bottom Navigation */}
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-3 flex justify-between items-center gap-3">
+          <button
+            onClick={handlePrevious}
+            disabled={currentQuestionIndex === 0}
+            className="flex-1 px-4 py-3 rounded-xl font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm"
+          >
+            ← Previous
+          </button>
+
+          {currentQuestionIndex === quizQuestions.length - 1 ? (
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg disabled:opacity-50 text-sm"
+            >
+              {isSubmitting ? 'Submitting...' : '✓ Submit Quiz'}
+            </button>
+          ) : (
+            <button
+              onClick={handleNext}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg text-sm"
+            >
+              Next →
+            </button>
+          )}
         </div>
 
         {/* Answer Summary */}

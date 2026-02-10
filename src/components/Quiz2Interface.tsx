@@ -221,8 +221,8 @@ export default function Quiz2Interface({ userDetails, onComplete, onKickedOut, a
   const isLowTime = timeRemaining < 120; // Less than 2 minutes
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 select-none" onCopy={(e) => e.preventDefault()} onCut={(e) => e.preventDefault()} onPaste={(e) => e.preventDefault()}>
-      
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-2 sm:p-4 pb-28 sm:pb-4 select-none" onCopy={(e) => e.preventDefault()} onCut={(e) => e.preventDefault()} onPaste={(e) => e.preventDefault()}>
+
       {/* Anti-Cheat Warning Banner */}
       {showWarning && (
         <div className="fixed top-0 left-0 right-0 z-[100] animate-slide-down">
@@ -255,31 +255,31 @@ export default function Quiz2Interface({ userDetails, onComplete, onKickedOut, a
 
       <div className="max-w-6xl mx-auto">
         {/* Header with Timer */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-6 sticky top-4 z-10">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-3 sm:p-6 mb-4 sm:mb-6 sticky top-2 sm:top-4 z-10">
           <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">{userDetails.fullName}</h2>
-              <p className="text-sm text-emerald-600 font-medium">Reading Comprehension Quiz</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{userDetails.fullName}</h2>
+              <p className="text-xs sm:text-sm text-emerald-600 font-medium">Reading Comprehension Quiz</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
               <button
                 onClick={() => setShowPassage(!showPassage)}
-                className="px-3 py-2 text-sm font-medium rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+                className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors whitespace-nowrap"
               >
-                {showPassage ? 'Hide Passage' : 'Show Passage'}
+                {showPassage ? 'Hide' : 'Show'} Passage
               </button>
               <div className={`text-right ${isLowTime ? 'animate-pulse' : ''}`}>
-                <div className={`text-3xl font-bold ${isLowTime ? 'text-red-600' : 'text-emerald-600'}`}>
+                <div className={`text-xl sm:text-3xl font-bold ${isLowTime ? 'text-red-600' : 'text-emerald-600'}`}>
                   {formatTime(timeRemaining)}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Time Remaining</p>
               </div>
             </div>
           </div>
-          
+
           <div className="relative">
             <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500 ease-out"
                 style={{ width: `${progress}%` }}
               />
@@ -311,16 +311,16 @@ export default function Quiz2Interface({ userDetails, onComplete, onKickedOut, a
           {/* Question Panel */}
           <div>
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6">
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 sm:p-6">
                 <span className="inline-block px-4 py-1 bg-white/20 rounded-full text-white text-sm font-medium mb-3">
                   Question {currentQuestionIndex + 1}
                 </span>
-                <h3 className="text-xl font-semibold text-white leading-relaxed">
+                <h3 className="text-lg sm:text-xl font-semibold text-white leading-relaxed">
                   {currentQuestion.question}
                 </h3>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="space-y-3">
                   {currentQuestion.options.map((option, index) => {
                     const optionLabel = String.fromCharCode(65 + index);
@@ -330,16 +330,14 @@ export default function Quiz2Interface({ userDetails, onComplete, onKickedOut, a
                       <button
                         key={index}
                         onClick={() => handleAnswerSelect(option)}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all transform hover:scale-[1.01] ${
-                          isSelected
+                        className={`w-full text-left p-3 sm:p-4 rounded-xl border-2 transition-all transform hover:scale-[1.01] ${isSelected
                             ? 'border-emerald-500 bg-emerald-50 shadow-md'
                             : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start">
-                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold mr-3 text-sm ${
-                            isSelected ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700'
-                          }`}>
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold mr-3 text-sm ${isSelected ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700'
+                            }`}>
                             {optionLabel}
                           </div>
                           <span className={`flex-1 text-sm ${isSelected ? 'text-emerald-900 font-medium' : 'text-gray-700'}`}>
@@ -357,8 +355,8 @@ export default function Quiz2Interface({ userDetails, onComplete, onKickedOut, a
                 </div>
               </div>
 
-              {/* Navigation */}
-              <div className="bg-gray-50 p-6 flex justify-between items-center border-t">
+              {/* Navigation - Hidden on mobile, shown inside card on desktop */}
+              <div className="hidden sm:flex bg-gray-50 p-6 justify-between items-center border-t">
                 <button
                   onClick={handlePrevious}
                   disabled={currentQuestionIndex === 0}
@@ -371,9 +369,8 @@ export default function Quiz2Interface({ userDetails, onComplete, onKickedOut, a
                   {quiz2Questions.map((_, idx) => (
                     <div
                       key={idx}
-                      className={`w-2.5 h-2.5 rounded-full ${
-                        idx === currentQuestionIndex ? 'bg-emerald-600 w-8' : answers[quiz2Questions[idx].id] ? 'bg-green-500' : 'bg-gray-300'
-                      } transition-all`}
+                      className={`w-2.5 h-2.5 rounded-full ${idx === currentQuestionIndex ? 'bg-emerald-600 w-8' : answers[quiz2Questions[idx].id] ? 'bg-green-500' : 'bg-gray-300'
+                        } transition-all`}
                     />
                   ))}
                 </div>
@@ -397,6 +394,34 @@ export default function Quiz2Interface({ userDetails, onComplete, onKickedOut, a
               </div>
             </div>
 
+            {/* Mobile Fixed Bottom Navigation */}
+            <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-3 flex justify-between items-center gap-3">
+              <button
+                onClick={handlePrevious}
+                disabled={currentQuestionIndex === 0}
+                className="flex-1 px-4 py-3 rounded-xl font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm"
+              >
+                ← Previous
+              </button>
+
+              {currentQuestionIndex === quiz2Questions.length - 1 ? (
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg disabled:opacity-50 text-sm"
+                >
+                  {isSubmitting ? 'Submitting...' : '✓ Submit Quiz'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleNext}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all shadow-lg text-sm"
+                >
+                  Next →
+                </button>
+              )}
+            </div>
+
             {/* Answer Summary */}
             <div className="mt-6 bg-white rounded-xl shadow-md border border-gray-100 p-6">
               <h4 className="font-semibold text-gray-900 mb-3">Answer Summary</h4>
@@ -405,13 +430,12 @@ export default function Quiz2Interface({ userDetails, onComplete, onKickedOut, a
                   <button
                     key={q.id}
                     onClick={() => setCurrentQuestionIndex(idx)}
-                    className={`w-10 h-10 rounded-lg font-medium transition-all ${
-                      idx === currentQuestionIndex
+                    className={`w-10 h-10 rounded-lg font-medium transition-all ${idx === currentQuestionIndex
                         ? 'bg-emerald-600 text-white ring-2 ring-emerald-300'
                         : answers[q.id]
-                        ? 'bg-green-100 text-green-700 border border-green-300'
-                        : 'bg-gray-100 text-gray-600 border border-gray-300'
-                    }`}
+                          ? 'bg-green-100 text-green-700 border border-green-300'
+                          : 'bg-gray-100 text-gray-600 border border-gray-300'
+                      }`}
                   >
                     {idx + 1}
                   </button>
